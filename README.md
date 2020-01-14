@@ -3,11 +3,11 @@ All documentation about this project is found here:
 https://aconfluence.no/x/DQD1AQ
 
 This project consist of several subprojects:
-*Remote Sensors
-*Base Station
-*Cloud Storage
-*Google Assistant
-*Android & IOS App
+* Remote Sensors
+* Base Station
+* Cloud Storage
+* Google Assistant
+* Android & IOS App
 
 More might come if I feel the need to.
 
