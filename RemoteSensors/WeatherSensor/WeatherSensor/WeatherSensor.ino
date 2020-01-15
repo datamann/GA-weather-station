@@ -20,6 +20,7 @@
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
+#include <RH_ASK.h>
 
 #define BME_SCK 13
 #define BME_MISO 12
@@ -31,6 +32,8 @@
 Adafruit_BME280 bme; // I2C
 //Adafruit_BME280 bme(BME_CS); // hardware SPI
 //Adafruit_BME280 bme(BME_CS, BME_MOSI, BME_MISO, BME_SCK); // software SPI
+
+RH_ASK rf;
 
 unsigned long delayTime;
 
@@ -59,12 +62,20 @@ void setup() {
     delayTime = 1000;
 
     Serial.println();
+
+    if (!rf.init())
+         Serial.println("RF init failed");
 }
 
 
 void loop() { 
     printValues();
     delay(delayTime);
+
+    const char *msg = "Hello World!";
+    rf.send((uint8_t *)msg, strlen(msg));
+    rf.waitPacketSent();
+    delay(1000);
 }
 
 
