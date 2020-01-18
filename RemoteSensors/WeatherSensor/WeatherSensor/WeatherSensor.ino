@@ -72,7 +72,7 @@ void loop() {
     printValues();
     delay(delayTime);
 
-    const char *msg = "Hello World!";
+    const char *msg = "Weather Sensor";
     rf.send((uint8_t *)msg, strlen(msg));
     rf.waitPacketSent();
     delay(1000);
