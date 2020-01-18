@@ -16,55 +16,68 @@
   See the LICENSE file for details.
  ***************************************************************************/
 
+ /*
+ * Written by Stig B. Sivertsen
+ * sbsivertsen@gmail.com
+ * https://github.com/datamann/GA-weather-station
+ * 18.01.2020
+ * @see The GNU Public License (GPL) Version 3
+*/
+
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <RH_ASK.h>
 
-#define BME_SCK 13
-#define BME_MISO 12
-#define BME_MOSI 11
-#define BME_CS 10
-
 #define SEALEVELPRESSURE_HPA (1013.25)
+#define DEBUG
 
-Adafruit_BME280 bme; // I2C
-//Adafruit_BME280 bme(BME_CS); // hardware SPI
-//Adafruit_BME280 bme(BME_CS, BME_MOSI, BME_MISO, BME_SCK); // software SPI
-
+Adafruit_BME280 bme;
 RH_ASK rf;
 
 unsigned long delayTime;
 
+struct wd {
+  float temperature;
+  float altitude;
+  float pressure;
+  float humidity;
+  //float battery;      // For future use
+  //uint8_t  sensorID;  // For future use
+  //time_t timeStamp;   // For future use
+};
+wd weatherdata;
+
 void setup() {
+
     Serial.begin(9600);
-    while(!Serial);    // time to get serial running
-    Serial.println(F("BME280 test"));
+    
+    while(!Serial);
+        #ifdef DEBUG
+            Serial.println(F("BME280 running"));
+        #endif
 
     unsigned status;
+    status = bme.begin(0x76);
     
-    // default settings
-    status = bme.begin(0x76);  
-    // You can also pass in a Wire library object like &Wire2
-    // status = bme.begin(0x76, &Wire2)
     if (!status) {
-        Serial.println("Could not find a valid BME280 sensor, check wiring, address, sensor ID!");
-        Serial.print("SensorID was: 0x"); Serial.println(bme.sensorID(),16);
-        Serial.print("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n");
-        Serial.print("   ID of 0x56-0x58 represents a BMP 280,\n");
-        Serial.print("        ID of 0x60 represents a BME 280.\n");
-        Serial.print("        ID of 0x61 represents a BME 680.\n");
-        while (1) delay(10);
+        #ifdef DEBUG
+            Serial.println(F("Could not find a valid BME280 sensor, check wiring, address, sensor ID!"));
+            Serial.print(F("SensorID was: 0x"));
+            Serial.println(bme.sensorID(),16);
+            Serial.print(F("        ID of 0xFF probably means a bad address, a BMP 180 or BMP 085\n"));
+            while (1) delay(10);
+        #endif
     }
-    
-    Serial.println("-- Default Test --");
+
     delayTime = 1000;
-
-    Serial.println();
-
     if (!rf.init())
-         Serial.println("RF init failed");
+    {
+        #ifdef DEBUG
+            Serial.println(F("RF init failed"));
+        #endif
+    }
 }
 
 
@@ -72,30 +85,34 @@ void loop() {
     printValues();
     delay(delayTime);
 
-    const char *msg = "Weather Sensor";
-    rf.send((uint8_t *)msg, strlen(msg));
+    rf.send((uint8_t *)&weatherdata, sizeof(weatherdata));
     rf.waitPacketSent();
     delay(1000);
 }
 
 
 void printValues() {
-    Serial.print("Temperature = ");
-    Serial.print(bme.readTemperature());
-    Serial.println(" *C");
 
-    Serial.print("Pressure = ");
+    weatherdata.temperature = bme.readTemperature();
+    weatherdata.pressure = bme.readPressure() / 100.0F;
+    weatherdata.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
+    weatherdata.humidity = bme.readHumidity();
 
-    Serial.print(bme.readPressure() / 100.0F);
-    Serial.println(" hPa");
-
-    Serial.print("Approx. Altitude = ");
-    Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
-    Serial.println(" m");
-
-    Serial.print("Humidity = ");
-    Serial.print(bme.readHumidity());
-    Serial.println(" %");
-
-    Serial.println();
+    #ifdef DEBUG
+        char buf[21];
+      
+        char temperature[6];
+        char pressure[5];
+        char altitude[6];
+        char humidity[5];
+      
+        dtostrf(weatherdata.temperature, 3, 2, temperature);
+        dtostrf(weatherdata.pressure, 3, 0, pressure);
+        dtostrf(weatherdata.altitude, 3, 2, altitude);
+        dtostrf(weatherdata.humidity, 3, 0, humidity);
+      
+        sprintf(buf,"%s %s %s %s", temperature, pressure, altitude, humidity);
+        Serial.print(F("Buf: "));
+        Serial.println(buf);
+    #endif
 }
