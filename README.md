@@ -9,6 +9,8 @@ This project consist of several subprojects:
 * Google Assistant
 * Android & IOS App
 
+![Project architecture](pictures/image)
+
 More might come if I feel the need to.
 
 I'm used to create user stories and create tasks from them but as far as I know, I can't do that here in Github.
