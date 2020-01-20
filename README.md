@@ -9,7 +9,7 @@ This project consist of several subprojects:
 * Google Assistant
 * Android & IOS App
 
-![Project architecture](pictures/image)
+![Project architecture](pictures/image.png)
 
 More might come if I feel the need to.
 
