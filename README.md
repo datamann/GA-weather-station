@@ -1,3 +1,5 @@
+[![Join the chat at https://gitter.im/datamann-GA-weather-station/community](https://badges.gitter.im/datamann-GA-weather-station/community.svg)](https://gitter.im/datamann-GA-weather-station/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 # Google Assistant based weather station
 All documentation about this project is found here:
 https://aconfluence.no/x/DQD1AQ
