@@ -20,7 +20,7 @@
  * Written by Stig B. Sivertsen
  * sbsivertsen@gmail.com
  * https://github.com/datamann/GA-weather-station
- * 18.01.2020
+ * 06.02.2020
  * @see The GNU Public License (GPL) Version 3
 */
 
@@ -54,9 +54,10 @@ struct wd {
   //time_t timeStamp;   // For future use
 };
 wd weatherdata;
-
+int PROBE = 2;
 void setup() {
-
+    analogReference(EXTERNAL);
+    pinMode(PROBE, OUTPUT);
     Serial.begin(9600);
     
     while(!Serial);
@@ -93,6 +94,8 @@ void loop() {
 
     if (millis() - target_time >= PERIOD)
     {
+        turnOn();
+        readVoltage();
         printValues();
         sendPacket();
         target_time += PERIOD;
@@ -130,4 +133,19 @@ void printValues() {
         Serial.print(F("Buf: "));
         Serial.println(buf);
     #endif
+}
+
+void readVoltage(){
+  voltsIn = (unsigned) analogRead(A1);
+  // 3.60/1023 = 0.003519061583578
+  volt = voltsIn * 0.003538611925709;
+}
+
+void turnOn(){
+  digitalWrite(2, HIGH);
+  Serial.println(F("Turned On..."));
+}
+void turnOff(){
+  digitalWrite(2, LOW);
+  Serial.println(F("Turned Off..."));
 }
