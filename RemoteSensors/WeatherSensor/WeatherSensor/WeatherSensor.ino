@@ -34,7 +34,13 @@
 #define DEBUG
 
 Adafruit_BME280 bme;
-RH_ASK rf;
+
+// Default RX=D11,TX=D12
+//RH_ASK rf;
+RH_ASK rf(500, 0,11);
+
+// ATTiny
+//RH_ASK driver(2000, 4, 3);
 
 unsigned long delayTime;
 
@@ -80,16 +86,25 @@ void setup() {
     }
 }
 
+unsigned long target_time = 0L;
+const unsigned long PERIOD = 1*05*1000UL;
 
-void loop() { 
-    printValues();
-    delay(delayTime);
+void loop() {
+
+    if (millis() - target_time >= PERIOD)
+    {
+        printValues();
+        sendPacket();
+        target_time += PERIOD;
+    }
+}
+
+void sendPacket(){
 
     rf.send((uint8_t *)&weatherdata, sizeof(weatherdata));
     rf.waitPacketSent();
-    delay(1000);
+    rf.setModeIdle();
 }
-
 
 void printValues() {
 
