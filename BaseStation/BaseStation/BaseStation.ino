@@ -8,7 +8,7 @@
 #include <RH_ASK.h>
 #include <SPI.h>
 
-RH_ASK rf(2000, 2, 4, 5);
+RH_ASK rf(500, 2, 4, 5);
 
 #define DEBUG
 
