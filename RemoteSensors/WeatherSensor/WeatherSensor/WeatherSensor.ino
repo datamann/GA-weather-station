@@ -30,17 +30,15 @@
 #include <Adafruit_BME280.h>
 #include <RH_ASK.h>
 
-#define SEALEVELPRESSURE_HPA (1013.25)
+// Comment out to turn off debug
 #define DEBUG
+
+#define SEALEVELPRESSURE_HPA (1013.25) // Default sea level pressure
 
 Adafruit_BME280 bme;
 
-// Default RX=D11,TX=D12
-//RH_ASK rf;
-RH_ASK rf(500, 0,11);
-
-// ATTiny
-//RH_ASK driver(2000, 4, 3);
+//RH_ASK rf;          // Default RX=D11,TX=D12
+RH_ASK rf(500, 0,11); // 500bps, RX=0, TX=D11 - Transmitt only
 
 unsigned long delayTime;
 
@@ -49,15 +47,19 @@ struct wd {
   float altitude;
   float pressure;
   float humidity;
-  //float battery;      // For future use
-  //uint8_t  sensorID;  // For future use
+  float battery;
+  uint8_t sensorID = 1;
   //time_t timeStamp;   // For future use
 };
 wd weatherdata;
-int PROBE = 2;
+
+int PROBESWITCH = 2;  // Pin D2
+int PROBE = A1;       // Pin A1
+
 void setup() {
     analogReference(EXTERNAL);
-    pinMode(PROBE, OUTPUT);
+    
+    pinMode(PROBESWITCH, OUTPUT);
     Serial.begin(9600);
     
     while(!Serial);
@@ -87,65 +89,95 @@ void setup() {
     }
 }
 
-unsigned long target_time = 0L;
-const unsigned long PERIOD = 1*05*1000UL;
+void turnOnProbe(){
+  digitalWrite(PROBESWITCH, HIGH);
+  delay(50);
+  #ifdef DEBUG
+    Serial.println(F("Turned probe on..."));
+  #endif
+}
+void turnOffProbe(){
+  digitalWrite(PROBESWITCH, LOW);
+  delay(50);
+  #ifdef DEBUG
+    Serial.println(F("Turned probe off..."));
+  #endif
+}
 
-void loop() {
+void turnOnBME280(){
+    bme.setSampling(Adafruit_BME280::MODE_NORMAL);
+    delay(50);
+}
 
-    if (millis() - target_time >= PERIOD)
-    {
-        turnOn();
-        readVoltage();
-        printValues();
-        sendPacket();
-        target_time += PERIOD;
-    }
+void turnOffBME280(){
+    bme.setSampling(Adafruit_BME280::MODE_SLEEP);
+    delay(50);
+}
+
+float volt;
+float voltsIn;
+void readVoltage(){
+  volt = 0.00;
+  voltsIn = (unsigned) analogRead(PROBE);
+  volt = voltsIn * 0.003538611925709;   // 3.60/1023 = 0.003519061583578
 }
 
 void sendPacket(){
-
     rf.send((uint8_t *)&weatherdata, sizeof(weatherdata));
     rf.waitPacketSent();
-    rf.setModeIdle();
 }
 
-void printValues() {
-
+void readWeatherData(){
     weatherdata.temperature = bme.readTemperature();
     weatherdata.pressure = bme.readPressure() / 100.0F;
     weatherdata.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
     weatherdata.humidity = bme.readHumidity();
+    weatherdata.battery = volt;
+}
+
+unsigned long target_time = 0L;
+const unsigned long PERIOD = 1*15*1000UL;
+void loop() {
+
+    if (millis() - target_time >= PERIOD)
+    {
+        // Turn on all sensors and read data
+        turnOnBME280();
+        readWeatherData();
+        turnOnProbe();
+        readVoltage();
+        printValues();
+        sendPacket();
+
+        // Turn off all sensors to save power
+        turnOffBME280();
+        turnOffProbe();
+        
+        target_time += PERIOD;
+    }
+}
+
+void printValues() {
 
     #ifdef DEBUG
-        char buf[21];
+        char buf[31];
       
-        char temperature[6];
-        char pressure[5];
-        char altitude[6];
-        char humidity[5];
+        char temperature[7];
+        char pressure[6];
+        char altitude[5];
+        char humidity[6];
+        char batt[5];
+        char id[2];
       
         dtostrf(weatherdata.temperature, 3, 2, temperature);
-        dtostrf(weatherdata.pressure, 3, 0, pressure);
-        dtostrf(weatherdata.altitude, 3, 2, altitude);
+        dtostrf(weatherdata.pressure, 4, 0, pressure);
+        dtostrf(weatherdata.altitude, 4, 0, altitude);
         dtostrf(weatherdata.humidity, 3, 0, humidity);
+        dtostrf(weatherdata.battery, 1, 2, batt);
+        dtostrf(weatherdata.sensorID, 1, 0, id);
       
-        sprintf(buf,"%s %s %s %s", temperature, pressure, altitude, humidity);
+        sprintf(buf,"%s %s %s %s %s %s", temperature, pressure, altitude, humidity, batt, id);
         Serial.print(F("Buf: "));
         Serial.println(buf);
     #endif
-}
-
-void readVoltage(){
-  voltsIn = (unsigned) analogRead(A1);
-  // 3.60/1023 = 0.003519061583578
-  volt = voltsIn * 0.003538611925709;
-}
-
-void turnOn(){
-  digitalWrite(2, HIGH);
-  Serial.println(F("Turned On..."));
-}
-void turnOff(){
-  digitalWrite(2, LOW);
-  Serial.println(F("Turned Off..."));
 }

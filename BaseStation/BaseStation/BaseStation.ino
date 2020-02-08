@@ -8,7 +8,7 @@
 #include <RH_ASK.h>
 #include <SPI.h>
 
-RH_ASK rf(500, 2, 4, 5);
+RH_ASK rf(500, 2, 0, 5); // 500 bps, recieve on GPIO2, transmit on GPIO0 (Recieve only), PTT on GPIO5.
 
 #define DEBUG
 
@@ -17,8 +17,8 @@ struct wd {
     float altitude;
     float pressure;
     float humidity;
-    //float battery;      // For future use
-    //uint8_t  sensorID;  // For future use
+    float battery;
+    uint8_t  sensorID;
     //time_t timeStamp;   // For future use
 };
 wd weatherdata;
@@ -48,21 +48,50 @@ void loop() {
         wd* weatherdata = (wd*)data;
 
         #ifdef DEBUG
-            char buf[21];
+            char buf[31];
   
-            char temperature[6];
-            char pressure[5];
-            char altitude[6];
-            char humidity[5];
+            char temperature[7];
+            char pressure[6];
+            char altitude[5];
+            char humidity[6];
+            char batt[5];
+            char id[2];
       
             dtostrf(weatherdata->temperature, 3, 2, temperature);
-            dtostrf(weatherdata->pressure, 3, 0, pressure);
-            dtostrf(weatherdata->altitude, 3, 2, altitude);
+            dtostrf(weatherdata->pressure, 4, 0, pressure);
+            dtostrf(weatherdata->altitude, 4, 0, altitude);
             dtostrf(weatherdata->humidity, 3, 0, humidity);
-      
-            sprintf(buf,"%s %s %s %s", temperature, pressure, altitude, humidity);
-            Serial.print(F("Buf: "));
-            Serial.println(buf);
+            dtostrf(weatherdata->battery, 1, 2, batt);
+            dtostrf(weatherdata->sensorID, 1, 0, id);
+
+            Serial.print(F("Temperature: "));
+            Serial.print(temperature);
+            Serial.println(F("c"));
+            
+            Serial.print(F("Pressure: "));
+            Serial.print(pressure);
+            Serial.println(F("hpa"));
+            
+            Serial.print(F("Altitude: "));
+            Serial.print(altitude);
+            Serial.println(F("m"));
+            
+            Serial.print(F("Humidity: "));
+            Serial.print(humidity);
+            Serial.println(F("%"));
+            
+            Serial.print(F("Battery: "));
+            Serial.print(batt);
+            Serial.println(F("v"));
+            
+            Serial.print(F("Sensor ID: "));
+            Serial.println(id);
+            
+            Serial.println();
+            
+            //sprintf(buf,"%s %s %s %s %s %s", temperature, pressure, altitude, humidity, batt, id);
+            //Serial.print(F("Buf: "));
+            //Serial.println(buf);
         #endif
     }
 }
