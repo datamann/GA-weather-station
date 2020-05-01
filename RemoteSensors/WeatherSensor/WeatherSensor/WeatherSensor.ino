@@ -24,11 +24,22 @@
  * @see The GNU Public License (GPL) Version 3
 */
 
+#include <avr/sleep.h>
+#include <avr/wdt.h>
+#include <avr/power.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <RH_ASK.h>
+
+int nbr_remaining;
+int sleep_time = 1;
+
+ISR(WDT_vect)
+{
+  wdt_reset();
+}
 
 // Comment out to turn off debug
 #define DEBUG
@@ -37,8 +48,7 @@
 
 Adafruit_BME280 bme;
 
-//RH_ASK rf;          // Default RX=D11,TX=D12
-RH_ASK rf(500, 0,11); // 500bps, RX=0, TX=D11 - Transmitt only
+RH_ASK rf(2000, -0,12); // 500bps, RX=0, TX=D11 - Transmitt only
 
 unsigned long delayTime;
 
@@ -50,13 +60,37 @@ struct wd {
   float battery;
   uint8_t sensorID = 1;
   //time_t timeStamp;   // For future use
-};
-wd weatherdata;
+}; wd weatherdata;
 
 int PROBESWITCH = 2;  // Pin D2
-int PROBE = A1;       // Pin A1
+int PROBE = 1;       // Pin A1
+int SWITCH;
+
+void configure_wdt(void) {
+  cli();
+  MCUSR = 0;
+  WDTCSR |= 0b00011000;
+  WDTCSR =  0b01000000 | 0b100001;
+  sei();
+}
+
+// Put the Arduino to deep sleep. Only an interrupt can wake it up.
+void sleep(int ncycles)
+{  
+  nbr_remaining = ncycles;
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+  power_adc_disable();
+ 
+  while (nbr_remaining > 0) {
+    sleep_mode();
+    sleep_disable();
+    nbr_remaining = nbr_remaining - 1;
+  }
+  power_all_enable();
+}
 
 void setup() {
+    configure_wdt();
     analogReference(EXTERNAL);
     
     pinMode(PROBESWITCH, OUTPUT);
@@ -91,17 +125,17 @@ void setup() {
 
 void turnOnProbe(){
   digitalWrite(PROBESWITCH, HIGH);
-  delay(50);
   #ifdef DEBUG
     Serial.println(F("Turned probe on..."));
   #endif
+  delay(50);
 }
 void turnOffProbe(){
   digitalWrite(PROBESWITCH, LOW);
-  delay(50);
   #ifdef DEBUG
     Serial.println(F("Turned probe off..."));
   #endif
+  delay(50);
 }
 
 void turnOnBME280(){
@@ -128,6 +162,13 @@ void sendPacket(){
 }
 
 void readWeatherData(){
+    
+    weatherdata.temperature = 0;
+    weatherdata.pressure = 0;
+    weatherdata.altitude = 0;
+    weatherdata.humidity = 0;
+    weatherdata.battery = 0;
+    
     weatherdata.temperature = bme.readTemperature();
     weatherdata.pressure = bme.readPressure() / 100.0F;
     weatherdata.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
@@ -135,26 +176,25 @@ void readWeatherData(){
     weatherdata.battery = volt;
 }
 
-unsigned long target_time = 0L;
-const unsigned long PERIOD = 1*15*1000UL;
 void loop() {
 
-    if (millis() - target_time >= PERIOD)
-    {
-        // Turn on all sensors and read data
-        turnOnBME280();
-        readWeatherData();
-        turnOnProbe();
-        readVoltage();
-        printValues();
-        sendPacket();
+    Serial.println(F("Waking up..."));
+    
+    // Turn on all sensors and read data
+    turnOnBME280();
+    readWeatherData();
+    turnOnProbe();
+    readVoltage();
+    printValues();
+    sendPacket();
 
-        // Turn off all sensors to save power
-        turnOffBME280();
-        turnOffProbe();
-        
-        target_time += PERIOD;
-    }
+    // Turn off all sensors to save power
+    turnOffBME280();
+    turnOffProbe();
+
+    Serial.println(F("Going to sleep..."));
+    delay(20);
+    sleep(sleep_time);
 }
 
 void printValues() {
