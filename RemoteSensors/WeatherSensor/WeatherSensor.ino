@@ -20,7 +20,7 @@
  * Written by Stig B. Sivertsen
  * sbsivertsen@gmail.com
  * https://github.com/datamann/GA-weather-station
- * 06.02.2020
+ * 21.09.2020
  * @see The GNU Public License (GPL) Version 3
 */
 
@@ -34,7 +34,7 @@
 #include <RH_ASK.h>
 
 int nbr_remaining;
-int sleep_time = 1;
+int sleep_time = 19; // 19 = 2.5min
 
 ISR(WDT_vect)
 {
@@ -42,13 +42,12 @@ ISR(WDT_vect)
 }
 
 // Comment out to turn off debug
-#define DEBUG
+//#define DEBUG
 
 #define SEALEVELPRESSURE_HPA (1013.25) // Default sea level pressure
 
 Adafruit_BME280 bme;
-
-RH_ASK rf(2000, -0,12); // 500bps, RX=0, TX=D11 - Transmitt only
+RH_ASK rf(2000, -0,10); // 2000bps, RX=0, TX=D10 - Transmitt only
 
 unsigned long delayTime;
 
@@ -62,16 +61,18 @@ struct wd {
   //time_t timeStamp;   // For future use
 }; wd weatherdata;
 
-int PROBESWITCH = 2;  // Pin D2
-int PROBE = 1;       // Pin A1
-int SWITCH;
-
 void configure_wdt(void) {
   cli();
   MCUSR = 0;
   WDTCSR |= 0b00011000;
   WDTCSR =  0b01000000 | 0b100001;
   sei();
+
+  /*cli();
+  WDTCSR = (24);//change enable and WDE - also resets
+  WDTCSR = (33);//prescalers only - get rid of the WDE and WDCE bit
+  WDTCSR |= (1<<6);//enable interrupt mode
+  sei();*/
 }
 
 // Put the Arduino to deep sleep. Only an interrupt can wake it up.
@@ -79,7 +80,9 @@ void sleep(int ncycles)
 {  
   nbr_remaining = ncycles;
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-  power_adc_disable();
+  
+  //power_adc_disable();
+  ADCSRA &= ~(1 << 7);
  
   while (nbr_remaining > 0) {
     sleep_mode();
@@ -91,9 +94,14 @@ void sleep(int ncycles)
 
 void setup() {
     configure_wdt();
-    analogReference(EXTERNAL);
+
+    for (int i = 0; i < 20; i++) {
+      pinMode(i, OUTPUT);
+    }
     
-    pinMode(PROBESWITCH, OUTPUT);
+    analogReference(INTERNAL);
+    analogRead(A0);
+    
     Serial.begin(9600);
     
     while(!Serial);
@@ -121,21 +129,14 @@ void setup() {
             Serial.println(F("RF init failed"));
         #endif
     }
-}
 
-void turnOnProbe(){
-  digitalWrite(PROBESWITCH, HIGH);
-  #ifdef DEBUG
-    Serial.println(F("Turned probe on..."));
-  #endif
-  delay(50);
-}
-void turnOffProbe(){
-  digitalWrite(PROBESWITCH, LOW);
-  #ifdef DEBUG
-    Serial.println(F("Turned probe off..."));
-  #endif
-  delay(50);
+  // Blinking LED to indicate that the Remote Sensor is alive.
+  for (int i = 0; i < 6; i++) {
+    digitalWrite(2, HIGH);
+    delay(50);
+    digitalWrite(2, LOW);
+    delay(50);
+  }
 }
 
 void turnOnBME280(){
@@ -148,12 +149,42 @@ void turnOffBME280(){
     delay(50);
 }
 
-float volt;
-float voltsIn;
-void readVoltage(){
-  volt = 0.00;
-  voltsIn = (unsigned) analogRead(PROBE);
-  volt = voltsIn * 0.003538611925709;   // 3.60/1023 = 0.003519061583578
+float getBatteryVolts() {
+  // http://www.gammon.com.au/adc
+  // https://github.com/RalphBacon/Arduino-Battery-Monitor
+
+  // You MUST measure the voltage at pin 21 (AREF) using just a simple one line sketch consisting
+  // of:  analogReference(INTERNAL);
+  //      analogRead(A0);
+  // Then use the measured value here.
+
+  const float InternalReferenceVoltage = 1.096; // <- as measured (or 1v1 by default)
+
+  // turn ADC on
+  ADCSRA =  bit (ADEN);
+
+  // Prescaler of 128
+  ADCSRA |= bit (ADPS0) |  bit (ADPS1) | bit (ADPS2);
+
+  // MUX3 MUX2 MUX1 MUX0  --> 1110 1.1V (VBG) - Selects channel 14, bandgap voltage, to measure
+  ADMUX = bit (REFS0) | bit (MUX3) | bit (MUX2) | bit (MUX1);
+
+  // let it stabilize
+  delay (50);
+
+  // start a conversion
+  bitSet (ADCSRA, ADSC);
+
+  // Wait for the conversion to finish
+  while (bit_is_set(ADCSRA, ADSC))
+  {
+    ;
+  }
+
+  // Float normally reduces precion but works OK here. Add 0.5 for rounding not truncating.
+  float results = InternalReferenceVoltage / float (ADC + 0.5) * 1024.0;
+  ADMUX =~ bit (REFS0) | bit (MUX3) | bit (MUX2) | bit (MUX1);
+  return results;
 }
 
 void sendPacket(){
@@ -173,24 +204,18 @@ void readWeatherData(){
     weatherdata.pressure = bme.readPressure() / 100.0F;
     weatherdata.altitude = bme.readAltitude(SEALEVELPRESSURE_HPA);
     weatherdata.humidity = bme.readHumidity();
-    weatherdata.battery = volt;
 }
 
 void loop() {
 
     Serial.println(F("Waking up..."));
     
-    // Turn on all sensors and read data
     turnOnBME280();
     readWeatherData();
-    turnOnProbe();
-    readVoltage();
+    turnOffBME280();
+    weatherdata.battery = getBatteryVolts();
     printValues();
     sendPacket();
-
-    // Turn off all sensors to save power
-    turnOffBME280();
-    turnOffProbe();
 
     Serial.println(F("Going to sleep..."));
     delay(20);
