@@ -6,6 +6,7 @@ https://aconfluence.no/x/DQD1AQ
 
 This project consist of several subprojects:
 * Remote Sensors
+    - PCB project found here: https://easyeda.com/sbsivertsen/attiny84radiotransmitter
 * Base Station
 * Cloud Storage
 * Google Assistant
