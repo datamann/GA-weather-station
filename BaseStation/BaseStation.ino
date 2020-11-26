@@ -34,7 +34,7 @@ DisplayData dp;
 // MQTT Connection
 WiFiClient client;
 MqttClient mqttClient(client); // Keepalive is changed in source file (constructor) from 60 to 90 sec.
-const char broker[] = "192.168.1.253";
+const char broker[] = "192.168.1.50";
 int port = 1883;
 const char topicTemperature[]  = "remotesensor/temperature";
 const char topicHumidity[]  = "remotesensor/humidity";
