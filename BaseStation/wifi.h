@@ -2,24 +2,40 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    24.09.2020
+    01.12.2020
     @see The GNU Public License (GPL) Version 3
 */
+#ifdef ESP32
+  #ifndef WIFI_h
+    #define WIFI_h
+    #include <WiFi.h>
+  #endif
+#endif
 
-#ifndef WIFI_h
-#define WIFI_h
-#include <WiFi.h>
-#include "wifi.h"
+#ifdef ESP8266
+  #ifndef ESP8266WiFi_h
+    #define ESP8266WiFi_h
+    #include <ESP8266WiFi.h>
+  #endif
+#endif
 
 // WIFI
 //char ssid[]           = "YOUR_SSID";    // -> credentials.h
 //const char* password  = "***********";  // -> credentials.h
 
-void init_Wifi() {
+WiFiClient init_Wifi() {
 
+#ifdef ESP32
   WiFi.setAutoReconnect(true);
   WiFi.begin(ssid, password);
   WiFiClient client;
+#endif
+#ifdef ESP8266
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  WiFiClient client;
+#endif
+ return client;
 }
 
 int check_Wifi_Connected() {
@@ -52,4 +68,4 @@ int check_Wifi_Connected() {
   // once you are connected :
   Serial.print("You're connected to the network");
   */
-  #endif
+//#endif

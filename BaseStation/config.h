@@ -2,9 +2,13 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    24.09.2020
+    01.12.2020
     @see The GNU Public License (GPL) Version 3
 */
+
+// Are you using ESP32 or ESP8266?
+//#define ESP32
+#define ESP8266
 
 #include "credentials.h"
 #include "wifi.h"

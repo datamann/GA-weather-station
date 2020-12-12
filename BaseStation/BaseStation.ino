@@ -2,12 +2,16 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    24.09.2020
+    01.12.2020
     @see The GNU Public License (GPL) Version 3
 */
 
 #include <SPI.h>
-#include "esp_bt.h"
+
+#ifdef ESP32
+  #include "esp_bt.h"
+#endif
+
 //#define DEBUG
 #include "config.h"
 
@@ -32,7 +36,7 @@ SensorData sensorData;
 DisplayData dp;
 
 // MQTT Connection
-WiFiClient client;
+WiFiClient client = init_Wifi();
 MqttClient mqttClient(client); // Keepalive is changed in source file (constructor) from 60 to 90 sec.
 const char broker[] = "192.168.1.50";
 int port = 1883;
@@ -44,18 +48,6 @@ const char topicBattery[]  = "remotesensor/battery";
 void setup() {
 
   Serial.begin(115200);
-
-  // TODO: Remove
-  // Turn off bluetooth module
-  //esp_err_t esp_bt_controller_init(esp_bt_controller_config_t *cfg);
-  //esp_err_t esp_bt_controller_deinit(void);
-  //esp_err_t esp_bt_controller_disable(void);
-  //esp_bt_controller_status_t esp_bt_controller_get_status(void);
-
-  /*#ifdef DEBUG
-    Serial.print(F("Status of bluethooth module is: "));
-    Serial.println(esp_bt_controller_get_status());
-  #endif*/
   
   bool rf_connected = init_rf();
   if (!rf_connected) {
@@ -74,8 +66,6 @@ void setup() {
     #endif
   }
   
-  init_Wifi();  
-  
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     dp.showicon("wifiicon", 1);
@@ -86,13 +76,15 @@ void setup() {
     #endif
   }
 
-  // Disable WIFI sleep mode
-  if(WiFi.getSleep() == true) {
-    WiFi.setSleep(false);
-    #ifdef DEBUG
-      Serial.println("WiFi Sleep is now deactivated.");
-    #endif
-  }
+  #ifdef ESP32
+    // Disable WIFI sleep mode
+    if(WiFi.getSleep() == true) {
+      WiFi.setSleep(false);
+      #ifdef DEBUG
+        Serial.println("WiFi Sleep is now deactivated.");
+      #endif
+    }
+  #endif
   
   #ifdef DEBUG
     Serial.print(F("\n\nWiFi connected: "));
@@ -102,27 +94,25 @@ void setup() {
   // If wifi is not connected, show no connection icon
   dp.showicon("wifiicon", 0);
 
-
-  // MQTT Connection
-  // You can provide a unique client ID, if not set the library uses Arduino-millis()
-  // Each client must have a unique client ID
-  // mqttClient.setId("hassio-1");
-
   // You can provide a username and password for authentication
-  mqttClient.setUsernamePassword("sbsivertsen", "j2x83vkf3EDu3W22647e");
+  //mqttClient.setUsernamePassword("sbsivertsen", "j2x83vkf3EDu3W22647e");
 
-  Serial.print("Attempting to connect to the MQTT broker: ");
-  Serial.println(broker);
+  #ifdef DEBUG
+    Serial.print("Attempting to connect to the MQTT broker: ");
+    Serial.println(broker);
+  #endif
 
   if (!mqttClient.connect(broker, port)) {
-    Serial.print("MQTT connection failed! Error code = ");
-    Serial.println(mqttClient.connectError());
-
-    while (1);
+    #ifdef DEBUG
+      Serial.print("MQTT connection failed! Error code = ");
+      Serial.println(mqttClient.connectError());
+    #endif
+  } else {
+    #ifdef DEBUG
+      Serial.println("You're connected to the MQTT broker!");
+      Serial.println();
+    #endif
   }
-  Serial.println("You're connected to the MQTT broker!");
-  Serial.println();
-
 
   // Fetch NTP time and date
   init_ntp();
@@ -219,29 +209,9 @@ const unsigned long wait_for_connection = 180000; // 30 sec in ms, after 30sec, 
 unsigned long connection_lost;
 bool timerSet = false;
 
-// TODO: Remove
-// ESP32 restart time
-//int restart_minutes = 30;
-//int past_minutes = 0;
-
 /************************************* LOOP ************************************************************/
 
 void loop() {
-
-  // TODO: Remove
-  // Restarting ESP to prevent hang
-  /*if (past_minutes >= restart_minutes){
-    #ifdef DEBUG
-      Serial.println(F("Triggering ESP restart: "));
-    #endif
-    past_minutes = 0;
-    ESP.restart();
-  }*/
-
-  // TODO: Remove
-  // call poll() regularly to allow the library to send MQTT keep alives which
-  // avoids being disconnected by the broker
-  //mqttClient.poll(); // Moved to be updated every minute
 
   // Display icon on LCD if RF connection is lost
   unsigned long now = millis();
@@ -292,6 +262,18 @@ void loop() {
       dp.printToLCD("pressure0.txt", String(sensorData.getPressure()));
       dp.printToLCD("battery.txt", String(sensorData.getBattery()));
       dp.showicon("radioactive", 0);
+
+      if (!mqttClient.connect(broker, port)) {
+        #ifdef DEBUG
+          Serial.print("MQTT connection failed! Error code = ");
+          Serial.println(mqttClient.connectError());
+        #endif
+      } else {
+        #ifdef DEBUG
+          Serial.println("You're connected to the MQTT broker!");
+          Serial.println();
+        #endif
+      }
     
       // Sending data to MQTT Broker
       mqttClient.beginMessage(topicTemperature);
@@ -311,10 +293,6 @@ void loop() {
       mqttClient.endMessage();
       
       #ifdef DEBUG
-        // TODO: Remove
-        //Serial.print(F("Free memory: "));
-        //Serial.println(ESP.getFreeHeap());
-        
         Serial.print(F("Temperature: "));
         Serial.print(sensorData.getTemperature());
         Serial.println(F("c"));
@@ -399,10 +377,6 @@ void loop() {
     #endif
     
     timeChanged = true;
-
-    // TODO: Remove
-    //past_minutes++; // Counting minutes until ESP restart
-    
     mqttClient.poll(); // Polling MQTT Server once evry minute.
   }
 

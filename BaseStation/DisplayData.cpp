@@ -2,7 +2,7 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    24.09.2020
+    08.12.2020
     @see The GNU Public License (GPL) Version 3
 */
 
