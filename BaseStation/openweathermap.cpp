@@ -2,20 +2,29 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    24.09.2020
+    07.12.2020
     @see The GNU Public License (GPL) Version 3
 */
 
 #include "openweathermap.h"
 #include "WeatherData.h"
 #include <ArduinoJson.h>
-#include <WiFi.h>
+
+#ifdef ESP32
+  #include <WiFi.h>
+#endif
+
+#ifdef ESP8266
+  #include <ESP8266WiFi.h>
+#endif
 
 // OPENWEATHER API CONFIGURATION
 //String cityid =  "3159016";               // -> config.h
 //String apikey = "*****************";       // -> credentials.h
 
 OpenWeatherMap::OpenWeatherMap() {}
+
+#ifdef ESP32
 
 WeatherData OpenWeatherMap::fetchWeatherData(String cityid, String apikey, WeatherData *ptr)
 {
@@ -37,14 +46,15 @@ WeatherData OpenWeatherMap::fetchWeatherData(String cityid, String apikey, Weath
                  "Host: " + _servername + "\r\n" +
                  "Connection: close\r\n\r\n");
     unsigned long timeout = millis();
+    
     while (client.available() == 0) {
         if (millis() - timeout > 10000) {
             #ifdef DEBUG
               Serial.print(F("Client timed out! "));
               Serial.println(client);
             #endif
-            client.stop();
-            ESP.restart(); // Restarts ESP to prevent hang.
+            //client.stop();
+            //ESP.restart(); // Restarts ESP to prevent hang.
         }
     }
 
@@ -103,31 +113,31 @@ WeatherData OpenWeatherMap::fetchWeatherData(String cityid, String apikey, Weath
 
   // TODO: Remove
     /*Serial.print(F("Location: "));
-    Serial.println(wd.getLocation());
+    Serial.println(wd->getLocation());
     Serial.print(F("Temperature: "));
-    Serial.println(wd.getTemperature());
+    Serial.println(wd->getTemperature());
     Serial.print(F("Feels like: "));
-    Serial.println(wd.getFeelslike());
+    Serial.println(wd->getFeelslike());
     Serial.print(F("Temp min: "));
-    Serial.println(wd.getTemp_min());
+    Serial.println(wd->getTemp_min());
     Serial.print(F("Temp max: "));
-    Serial.println(wd.getTemp_max());
+    Serial.println(wd->getTemp_max());
     Serial.print(F("Pressure: "));
-    Serial.println(wd.getPressure());
+    Serial.println(wd->getPressure());
     Serial.print(F("Humidity: "));
-    Serial.println(wd.getHumidity());
+    Serial.println(wd->getHumidity());
     Serial.print(F("Weather: "));
-    Serial.println(wd.getWeather());
+    Serial.println(wd->getWeather());
     Serial.print(F("Description: "));
-    Serial.println(wd.getDescription());
+    Serial.println(wd->getDescription());
     Serial.print(F("Wind speed: "));
-    Serial.println(wd.getWindspeed());
+    Serial.println(wd->getWindspeed());
     Serial.print(F("Wind direction: "));
-    Serial.println(wd.getWinddirection());
+    Serial.println(wd->getWinddirection());
     Serial.print(F("Wind compass direction: "));
-    Serial.println(wd.getWindcompassdirection());
+    Serial.println(wd->getWindcompassdirection());
     Serial.print(F("Weather ID: "));
-    Serial.println(wd.getWeatherid());*/
+    Serial.println(wd->getWeatherid());*/
 
 /*{"cod":"200","message":0,"cnt":1,
 
@@ -177,6 +187,136 @@ WeatherData OpenWeatherMap::fetchWeatherData(String cityid, String apikey, Weath
 }*/
   return *wd;
 };
+#endif
+
+
+#ifdef ESP8266
+
+WeatherData OpenWeatherMap::fetchWeatherData (String cityid, String apikey, WeatherData *ptr) {
+
+  String result;
+
+  WiFiClient httpclient = wifiConnect(cityid, apikey);
+  unsigned long timeout = millis();
+
+  while (httpclient.connected() == 0) {
+
+    if (millis() - timeout > 10000) {
+      httpclient.stop();
+
+      #ifdef DEBUG
+        Serial.print(F("HTTP client timed out! "));
+        Serial.println(httpclient);
+      #endif
+      
+      httpclient = wifiConnect(cityid, apikey);
+
+      #ifdef DEBUG
+        Serial.print(F("Tries to reconnect! "));
+        Serial.println(httpclient.connected());
+      #endif
+    }
+  }
+  
+  while (httpclient.connected() || httpclient.available()) {
+    char c = httpclient.read();
+
+    if (c != 255){
+      result = result+c;
+    }
+  }
+  httpclient.stop();
+
+  result.replace('[', ' ');
+  result.replace(']', ' ');
+
+  char jsonArray [result.length()+1];
+  result.toCharArray(jsonArray,sizeof(jsonArray));
+  jsonArray[result.length() + 1] = '\0';
+  
+  StaticJsonDocument<1024> doc;
+  DeserializationError error = deserializeJson(doc, jsonArray);
+
+  if (error) {
+    #ifdef DEBUG
+      Serial.print(F("deserializeJson() failed with code "));
+      Serial.println(error.c_str());
+    #endif
+  }
+
+  WeatherData *wd  = new WeatherData();
+
+  const char* location = doc["name"];
+  wd->setLocation(location);
+  float temperature = doc["main"]["temp"];
+  wd->setTemperature(temperature);
+  float feelsLike = doc["main"]["feels_like"];
+  wd->setFeelslike(feelsLike);
+  float temp_min = doc["main"]["temp_min"];
+  wd->setTemp_min(temp_min);
+  float temp_max = doc["main"]["temp_max"];
+  wd->setTemp_max(temp_max);
+  int pressure = doc["main"]["pressure"];
+  wd->setPressure(pressure);
+  int humidity = doc["main"]["humidity"];
+  wd->setHumidity(humidity);
+  const char* weather = doc["weather"]["main"];
+  wd->setWeather(weather);
+  const char* description = doc["weather"]["description"];
+  wd->setDescription(description);
+  float windSpeed = doc["wind"]["speed"];
+  wd->setWindspeed(windSpeed);
+  int windDirection = doc["wind"]["deg"];
+  wd->setWinddirection(windDirection);
+  wd->setWindcompassdirection(getWindDirection(wd->getWinddirection()));
+  int weatherID = doc["weather"]["id"];
+  wd->setWeatherid(weatherID);
+
+  // TODO: Remove
+    /*Serial.print(F("Location: "));
+    Serial.println(wd->getLocation());
+    Serial.print(F("Temperature: "));
+    Serial.println(wd->getTemperature());
+    Serial.print(F("Feels like: "));
+    Serial.println(wd->getFeelslike());
+    Serial.print(F("Temp min: "));
+    Serial.println(wd->getTemp_min());
+    Serial.print(F("Temp max: "));
+    Serial.println(wd->getTemp_max());
+    Serial.print(F("Pressure: "));
+    Serial.println(wd->getPressure());
+    Serial.print(F("Humidity: "));
+    Serial.println(wd->getHumidity());
+    Serial.print(F("Weather: "));
+    Serial.println(wd->getWeather());
+    Serial.print(F("Description: "));
+    Serial.println(wd->getDescription());
+    Serial.print(F("Wind speed: "));
+    Serial.println(wd->getWindspeed());
+    Serial.print(F("Wind direction: "));
+    Serial.println(wd->getWinddirection());
+    Serial.print(F("Wind compass direction: "));
+    Serial.println(wd->getWindcompassdirection());
+    Serial.print(F("Weather ID: "));
+    Serial.println(wd->getWeatherid());*/
+
+  return *wd;
+};
+
+WiFiClient OpenWeatherMap::wifiConnect(String cityid, String apikey){
+  WiFiClient httpclient;
+  char servername[]="api.openweathermap.org";
+  httpclient.connect(servername, 80);
+
+  httpclient.println("GET /data/2.5/weather?id="+cityid+"&units=metric&APPID="+apikey);
+  httpclient.println("Host: api.openweathermap.org");
+  httpclient.println("User-Agent: ArduinoWiFi/1.1");
+  httpclient.println("Connection: close");
+  httpclient.println();
+
+  return httpclient;
+}
+#endif
 
 const char* OpenWeatherMap::getWindDirection(int deg)
 {

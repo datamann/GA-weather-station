@@ -57,18 +57,20 @@ bool getNTPtime(int sec) {
 }
 
 void showTime(tm localTime) {
-  Serial.print(localTime.tm_mday);
-  Serial.print('/');
-  Serial.print(localTime.tm_mon + 1);
-  Serial.print('/');
-  Serial.print(localTime.tm_year - 100);
-  Serial.print('-');
-  Serial.print(localTime.tm_hour);
-  Serial.print(':');
-  Serial.print(localTime.tm_min);
-  Serial.print(':');
-  Serial.print(localTime.tm_sec);
-  Serial.print(" Day of Week ");
+  #ifdef DEBUG
+    Serial.print(localTime.tm_mday);
+    Serial.print('/');
+    Serial.print(localTime.tm_mon + 1);
+    Serial.print('/');
+    Serial.print(localTime.tm_year - 100);
+    Serial.print('-');
+    Serial.print(localTime.tm_hour);
+    Serial.print(':');
+    Serial.print(localTime.tm_min);
+    Serial.print(':');
+    Serial.print(localTime.tm_sec);
+    Serial.print(" Day of Week ");
+  #endif
   if (localTime.tm_wday == 0)   Serial.println(7);
   else Serial.println(localTime.tm_wday);
 }
