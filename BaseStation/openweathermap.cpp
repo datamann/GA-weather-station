@@ -305,7 +305,12 @@ WeatherData OpenWeatherMap::fetchWeatherData (String cityid, String apikey, Weat
 
 WiFiClient OpenWeatherMap::wifiConnect(String cityid, String apikey){
   WiFiClient httpclient;
-  char servername[]="api.openweathermap.org";
+
+  // IP: 37.139.20.5
+  // Host: api.openweathermap.org
+
+  // WiFiClient doesn't do DNS resolving very good so IP address is used.
+  char servername[]="37.139.20.5";
   httpclient.connect(servername, 80);
 
   httpclient.println("GET /data/2.5/weather?id="+cityid+"&units=metric&APPID="+apikey);

@@ -12,7 +12,7 @@
   #include "esp_bt.h"
 #endif
 
-//#define DEBUG
+#define DEBUG
 #include "config.h"
 
 // Cities to fetch weather data from
