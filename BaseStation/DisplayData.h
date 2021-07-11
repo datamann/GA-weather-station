@@ -48,7 +48,7 @@ class DisplayData {
     void printToLCD(String field, String data);
     void updateTimeLCD(String Time);
     void updateDateLCD(String Day, String Date);
-    const char* getWeatherIcon(int id, String pageid);
+    void getWeatherIcon(int id, String pageid);
     void readLCDData(String* cityid, String Day, String Date, String Time, WeatherData City1, WeatherData City2, SensorData sensorData, String IP);
   
   private:

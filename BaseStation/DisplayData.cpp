@@ -2,7 +2,7 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    08.12.2020
+    11.07.2021
     @see The GNU Public License (GPL) Version 3
 */
 
@@ -17,7 +17,7 @@
  * String cityid[3] = {"3159016","1711146"}; // Drammen, Ilagan
 */
 
-String RemoteSensorLocation = "Skogliveien 14";
+String RemoteSensorLocation = "Verven 30";
 
 DisplayData::DisplayData() {
   init_LCD();
@@ -242,7 +242,7 @@ void DisplayData::drawFewClouds(String pageid)
   DisplayData::endNextionCommand(); 
 };
 
-const char* DisplayData::getWeatherIcon(int id, String pageid)
+void DisplayData::getWeatherIcon(int id, String pageid)
 {
  switch(id)
  {

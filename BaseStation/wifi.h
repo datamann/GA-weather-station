@@ -32,6 +32,7 @@ WiFiClient init_Wifi() {
 #endif
 #ifdef ESP8266
   WiFi.mode(WIFI_STA);
+  WiFi.softAPdisconnect(true);
   WiFi.begin(ssid, password);
   WiFiClient client;
 #endif

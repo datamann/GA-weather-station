@@ -20,4 +20,5 @@
 bool init_rf() {
   bool status = false;
   status = rf.init();
+  return status;
 }
