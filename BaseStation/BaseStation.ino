@@ -2,18 +2,18 @@
     Written by Stig B. Sivertsen
     sbsivertsen@gmail.com
     https://github.com/datamann/GA-weather-station
-    01.12.2020
+    11.07.2021
     @see The GNU Public License (GPL) Version 3
 */
 
 #include <SPI.h>
+#include "config.h"
 
 #ifdef ESP32
   #include "esp_bt.h"
 #endif
 
 #define DEBUG
-#include "config.h"
 
 // Cities to fetch weather data from
 String cityid[] = {"3159016","1711146"}; // Drammen, NO - Ilagan, PH
@@ -35,8 +35,10 @@ SensorData sensorData;
 // Instance of Display data class
 DisplayData dp;
 
+
 // MQTT Connection
 WiFiClient client = init_Wifi();
+
 MqttClient mqttClient(client); // Keepalive is changed in source file (constructor) from 60 to 90 sec.
 const char broker[] = "192.168.1.50";
 int port = 1883;
@@ -45,10 +47,11 @@ const char topicHumidity[]  = "remotesensor/humidity";
 const char topicPressure[]  = "remotesensor/pressure";
 const char topicBattery[]  = "remotesensor/battery";
 
+
 void setup() {
 
   Serial.begin(115200);
-  
+
   bool rf_connected = init_rf();
   if (!rf_connected) {
     dp.showicon("radioinactive", 1);
@@ -65,6 +68,7 @@ void setup() {
       Serial.println(F("RF init succeeded!"));
     #endif
   }
+
   
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -114,6 +118,7 @@ void setup() {
     #endif
   }
 
+
   // Fetch NTP time and date
   init_ntp();
   getNTPtime(10);
@@ -132,6 +137,7 @@ void setup() {
   ilg = owpIlagan.fetchWeatherData(cityid[1], apikey, &ilg);
 
   #ifdef DEBUG
+    Serial.print(F("Test"));
     Serial.print(F("Location: "));
     Serial.println(drm.getLocation());
     Serial.print(F("Temperature: "));
@@ -230,6 +236,7 @@ void loop() {
 
   // Checking if RF connection is up and running
   now = millis();
+
   if (!rf.available())
   {
     if (!timerSet)
@@ -246,7 +253,8 @@ void loop() {
     // Receive data from remote sensor
     if (rf.recv(data, &len)) {
       rfwd* weatherdata = (rfwd*)data;
-      
+
+
       // Filling Sensor data class with data from the remote sensor
       sensorData.setTemperature(weatherdata->temperature);
       sensorData.setPressure(weatherdata->pressure);
@@ -256,12 +264,13 @@ void loop() {
 
       // Displaying remote sensor data on LCD
       dp.showicon("radioinactive", 0);
-      dp.printToLCD("location0.txt", "Skogliveien 14");
+      dp.printToLCD("location0.txt", "Verven 30");
       dp.printToLCD("temperature0.txt", String(sensorData.getTemperature()));
       dp.printToLCD("humidity0.txt", String(sensorData.getHumidity()));
       dp.printToLCD("pressure0.txt", String(sensorData.getPressure()));
       dp.printToLCD("battery.txt", String(sensorData.getBattery()));
       dp.showicon("radioactive", 0);
+
 
       if (!mqttClient.connect(broker, port)) {
         #ifdef DEBUG
@@ -274,7 +283,7 @@ void loop() {
           Serial.println();
         #endif
       }
-    
+
       // Sending data to MQTT Broker
       mqttClient.beginMessage(topicTemperature);
       mqttClient.print(sensorData.getTemperature());
@@ -291,7 +300,7 @@ void loop() {
       mqttClient.beginMessage(topicBattery);
       mqttClient.print(sensorData.getBattery());
       mqttClient.endMessage();
-      
+
       #ifdef DEBUG
         Serial.print(F("Temperature: "));
         Serial.print(sensorData.getTemperature());
@@ -309,8 +318,10 @@ void loop() {
         Serial.println(sensorData.getSensorid());
         Serial.println();
       #endif
+
     }
    }
+
 
   // Fetches NTP time and updates the LCD when time and date have changed
   getNTPtime(1000);
@@ -377,7 +388,7 @@ void loop() {
     #endif
     
     timeChanged = true;
-    mqttClient.poll(); // Polling MQTT Server once evry minute.
+    mqttClient.poll(); // Polling MQTT Server once every minute.
   }
 
   // Checking if date has changed
