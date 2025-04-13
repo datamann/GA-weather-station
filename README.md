@@ -2,7 +2,7 @@
 
 # Google Assistant based weather station
 All documentation about this project is found here:
-https://aconfluence.no/x/DQD1AQ
+https://sbsivertsen.atlassian.net/wiki/x/cAPNNg
 
 This project consist of several subprojects:
 * Remote Sensors
